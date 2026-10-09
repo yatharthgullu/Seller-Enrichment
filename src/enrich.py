@@ -62,6 +62,8 @@ class Engine:
     city_matcher: CityMatcher
     category_mapper: CategoryMapper
     calibration: CalibrationMap | None
+    state_names: list[str]
+    city_names: list[str]
 
 
 def load_engine() -> Engine:
@@ -70,10 +72,13 @@ def load_engine() -> Engine:
     if cal_path.exists():
         with open(cal_path, encoding="utf-8") as f:
             calibration = CalibrationMap.from_dict(json.load(f))
+    cities, states = dl.load_cities(), dl.load_states()
     return Engine(
-        city_matcher=CityMatcher(dl.load_cities(), dl.load_states()),
+        city_matcher=CityMatcher(cities, states),
         category_mapper=CategoryMapper(dl.load_taxonomy()),
         calibration=calibration,
+        state_names=sorted(states["gl_state_name"].dropna().astype(str).unique()),
+        city_names=sorted({n for n in cities["gl_city_name"].dropna().astype(str) if len(n) >= 3}),
     )
 
 

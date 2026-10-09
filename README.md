@@ -119,6 +119,20 @@ the dissenting documents carry ≥ half the winner's source weight.
 Backtest of the buckets: high 93.7% correct, medium 74.0% (calibration was
 fit on the same data, so these are optimistic).
 
+## Phone confirmation (Sarvam voice agent)
+
+Fields triage left at medium / low / missing are confirmed by a Sarvam voice agent
+("IndiaMART Seller Profile Verification"). The call is placed by hand from the Sarvam
+dashboard with the seller's GLID in the `glid` agent variable (the panel shows the
+variables, and a cohort CSV for campaigns). Results come back by webhook, or with the
+**Fetch latest calls** button, and the panel shows per field what was on file, whether
+it was confirmed / corrected / collected, and the new value. **Apply** writes the
+validated values into the profile. See `docs/sarvam_agent_prompt.md`.
+
+Setup: `.env` at the project root (git-ignored) with `SARVAM_APPS_API_KEY` (Voice
+Agents key), `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_AGENT_ID`;
+`SARVAM_API_KEY` is only used to transliterate Hindi replies.
+
 ## Download / export
 
 The dashboard's "Download predicted data" section exports every seller's
