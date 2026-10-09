@@ -1,0 +1,38 @@
+gl_state_id,gl_state_name,gl_state_name1,gl_state_alias,gl_state_capital,gl_state_code,gl_state_code_gov
+6495.0,Punjab,,,Chandigarh,PB,03
+6474.0,Bihar,,,Patna,BR,10
+6478.0,Delhi,DILLI,,,DL,07
+6481.0,Haryana,,,Chandigarh,HR,06
+6482.0,Himachal Pradesh,,,Shimla,HP,02
+6484.0,Jharkhand,,,Ranchi,JH,20
+6488.0,Madhya Pradesh,,,Bhopal,MP,23
+6489.0,Maharashtra,,,Mumbai,MH,27
+6496.0,Rajasthan,,,Jaipur,RJ,08
+6499.0,Uttar Pradesh,,,Lucknow,UP,09
+6480.0,Gujarat,,,Gandhinagar,GJ,24
+6500.0,Uttarakhand,Uttaranchal,,,UK,05
+6476.0,Chhattisgarh,Chattisgarh,,Raipur,CG,22
+6475.0,Chandigarh,,,,CH,04
+7708.0,Ladakh,,,,LA,
+6501.0,West Bengal,,,Kolkata,WB,19
+6502.0,Dadra and Nagar Haveli and Daman and Diu,,Dadra & Nagar Haveli,Silvassa,DN,26
+6503.0,Mizoram,,,Aizawl,MZ,15
+6504.0,Tripura,,,Agartala,TR,16
+7705.0,Telangana,,,,TS,36
+6477.0,Daman & Diu,,Daman and Diu,,DD,25
+6479.0,Goa,,,Panaji,GA,30
+6483.0,Jammu & Kashmir,,,Srinagar,JK,01
+6485.0,Karnataka,,,Bangalore,KA,29
+6486.0,Kerala,,,Thiruvananthapuram,KL,32
+6487.0,Lakshadweep,,,Kavaratti,LD,31
+6490.0,Manipur,,,Imphal,MN,14
+6491.0,Meghalaya,,,Shillong,ML,17
+6492.0,Nagaland,,,Kohima,NL,13
+6493.0,Odisha,,Orissa,Bhubaneswar,OR,21
+6494.0,Pondicherry,PUDUCHERRY,Puducherry,,PY,34
+6497.0,Sikkim,,,Gangtok,SK,11
+6498.0,Tamil Nadu,,,Chennai,TN,33
+6473.0,Assam,,,Dispur,AS,18
+6470.0,Andaman & Nicobar,,Andaman and Nicobar,Port Blair,AN,35
+6471.0,Andhra Pradesh,,,Hyderabad,AP,28
+6472.0,Arunachal Pradesh,,,Itanagar,AR,12

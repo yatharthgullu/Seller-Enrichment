@@ -1,0 +1,16 @@
+gl_legal_status_id,gl_legal_status_val,gl_legal_status_is_deleted,gl_legal_status_priority
+6.0,Limited Liability Partnership (LLP),0.0,4.0
+7.0,Not-For-Profit Companies,1.0,
+1.0,Public Limited Company,1.0,
+2.0,Limited Company (Ltd./Pvt.Ltd.),0.0,3.0
+3.0,Partnership Firm,0.0,2.0
+4.0,Individual - Proprietor,0.0,1.0
+5.0,Trust / Association of Person / Body of Individual,0.0,6.0
+8.0,Company,1.0,
+9.0,Association of Person,1.0,
+10.0,Trust,1.0,
+11.0,Body of Individual,1.0,
+12.0,Government Firm / Local Authority / Artificial Judiciary,0.0,7.0
+13.0,Artificial Judiciary Person,1.0,
+14.0,Government Firm,1.0,
+15.0,HUF Firm (Hindu Undivided Family),0.0,5.0

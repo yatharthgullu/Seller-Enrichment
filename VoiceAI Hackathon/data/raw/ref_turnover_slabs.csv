@@ -1,0 +1,14 @@
+gl_turnover_id,gl_turnover_val,gl_turnover_val_inr,gl_turnover_val_usd
+600.0,Rs. 500 - 1000 Crore ( or US$ 100 Mn - 200 Mn Approx.),Rs. 500 - 1000 Crore,US$ 100 Mn - 200 Mn
+700.0,Rs. 1000 - 5000 Crore ( or US$ 200 Mn - 1000 Mn Approx.),Rs. 1000 - 5000 Crore,US$ 200 Mn - 1000 Mn
+900.0,More than Rs. 10000 Crore ( or More than US$ 2000 Mn Approx.),More than Rs. 10000 Crore,More than US$ 2000 Mn
+50.0,Upto Rs. 50 Lakh ( or Upto US$ 100 K Approx.),Upto Rs. 50 Lakh,Upto US$ 100 K
+150.0,Rs. 1 - 2 Crore ( or US$ 200 K - 400 K Approx.),Rs. 1 - 2 Crore,US$ 200 K - 400 K
+250.0,Rs. 5 - 10 Crore ( or US$ 1 Mn - 2 Mn Approx.),Rs. 5 - 10 Crore,US$ 1 Mn - 2 Mn
+350.0,Rs. 25 - 50 Crore ( or US$ 5 Mn - 10 Mn Approx.),Rs. 25 - 50 Crore,US$ 5 Mn - 10 Mn
+100.0,Rs. 50 Lakh - 1 Crore ( or US$ 100 K - 200 K Approx.),Rs. 50 Lakh - 1 Crore,US$ 100 K - 200 K
+200.0,Rs. 2 - 5 Crore ( or US$ 400 K - 1 Mn Approx.),Rs. 2 - 5 Crore,US$ 400 K - 1 Mn
+300.0,Rs. 10 - 25 Crore ( or US$ 2 Mn - 5 Mn Approx.),Rs. 10 - 25 Crore,US$ 2 Mn - 5 Mn
+400.0,Rs. 50 - 100 Crore ( or US$ 10 Mn - 20 Mn Approx.),Rs. 50 - 100 Crore,US$ 10 Mn - 20 Mn
+500.0,Rs. 100 - 500 Crore ( or US$ 20 Mn - 100 Mn Approx.),Rs. 100 - 500 Crore,US$ 20 Mn - 100 Mn
+800.0,Rs. 5000 - 10000 Crore ( or US$ 1000 Mn - 2000 Mn Approx.),Rs. 5000 - 10000 Crore,US$ 1000 Mn - 2000 Mn

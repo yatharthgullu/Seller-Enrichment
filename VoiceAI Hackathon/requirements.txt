@@ -1,0 +1,9 @@
+# NOTE: on a machine with Application Control / WDAC policies that block
+# unsigned compiled wheels, install pandas via conda instead of pip:
+#   conda install -y pandas
+# then pip install the rest:
+pandas>=2.0        # install via conda if pip install fails with a DLL block
+numpy>=1.26
+rapidfuzz>=3.0
+streamlit>=1.30
+plotly>=5.20
