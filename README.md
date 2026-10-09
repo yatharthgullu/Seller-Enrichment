@@ -165,3 +165,17 @@ streamlit run app.py                # dashboard + editable seller profile UI
 - "People" data is surfaced from an authoritative source, not independently
   verified by this pipeline — documented above as an explicit design choice,
   not an oversight.
+
+## Run the web app
+
+React front end (`web/`) over a FastAPI backend (`api/main.py`), one process on one port:
+
+```bash
+cd web && npm install && npm run build      # once, and after UI changes
+cd .. && python -m uvicorn api.main:app --port 8000
+# open http://localhost:8000
+```
+
+For UI work, run `python -m uvicorn api.main:app --port 8000` and `npm run dev` (in `web/`) and open
+http://localhost:5173; it proxies `/api` to the backend. The same server receives Sarvam webhooks at
+`/sarvam/webhook?token=<WEBHOOK_TOKEN>`. The older Streamlit UI (`streamlit run app.py`) still works.

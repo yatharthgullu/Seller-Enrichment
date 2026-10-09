@@ -10,3 +10,6 @@ skills.md
 data/samples/
 .env
 outputs/calls/
+
+web/node_modules/
+web/dist/
