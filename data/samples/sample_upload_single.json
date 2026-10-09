@@ -1,0 +1,98 @@
+{
+ "seller_id": "2267182",
+ "documents": [
+  {
+   "doc_type": "CANCELLED CHEQUE",
+   "extraction": {
+    "amount": {
+     "value": ""
+    },
+    "bank_name": {
+     "value": "State Bank Of India"
+    },
+    "ifsc_code": {
+     "value": "SBIN0003018"
+    },
+    "bank_branch": {
+     "value": "BERANJAARYANA"
+    },
+    "bank_address": {
+     "value": "NEAR GHANTAGHAR CHOWK RAILWAY ROAD BERANJAARYANA 121021"
+    },
+    "cheque_number": {
+     "value": "556447"
+    },
+    "accholder_name": {
+     "value": "NA"
+    },
+    "account_number": {
+     "value": "XXXXXXX7056"
+    }
+   }
+  },
+  {
+   "doc_type": "Product Invoice",
+   "extraction": {
+    "GST": [
+     "06BBEPS7217R1ZV"
+    ],
+    "Reason": "The images contain clear tax invoices with supplier/buyer details, GST numbers, and product transaction tables.",
+    "Address": [
+     "Near Government Model Sanskriti Primary School, Back Side Manoj Kiryana Store, Vill. Paluwas, Distt Bhiwani 127021"
+    ],
+    "Website": [],
+    "Products": [
+     {
+      "name": "",
+      "unit": "Pcs.",
+      "price_per_unit": 65000
+     }
+    ],
+    "isEnglish": "yes",
+    "isInvoice": "yes",
+    "CompanyName": [
+     "SHARMA SURGICAL"
+    ],
+    "TotalAmount": 153400,
+    "CustomerDetails": {
+     "name": "Chopra Metal Industries",
+     "gstin": "03AAFCC8244L1ZY",
+     "address": "D21, Focal Point, Jalandhar-144001, Punjab"
+    }
+   }
+  },
+  {
+   "doc_type": "Sign Board",
+   "extraction": {
+    "GST": [
+     "06BBEPS7217R1ZY"
+    ],
+    "Reason": [
+     "Extraction focused on the main signboard of Sharma Surgical."
+    ],
+    "Aadhaar": [],
+    "Address": [
+     "Near Govt. Model Sanskriti Primary School, Haripur-Paluwas, Bhiwani-127021 (Haryana)"
+    ],
+    "Website": [],
+    "Services": [
+     "Surgical"
+    ],
+    "isEnglish": [
+     "yes"
+    ],
+    "CompanyName": [
+     "SHARMA SURGICAL"
+    ],
+    "Designation": [],
+    "SocialMedia": [],
+    "isSignboard": [
+     "yes"
+    ],
+    "ProprietorName": [],
+    "OperationalHours": [],
+    "BankAccountDetails": []
+   }
+  }
+ ]
+}
