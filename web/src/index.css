@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+/* Design tokens. Surfaces are quiet and neutral so the status colours carry meaning. */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f8f9fb;
+  --line: #e4e7ec;
+  --line-strong: #d0d5dd;
+  --ink: #101828;
+  --ink-2: #475467;
+  --ink-3: #8a94a6;
+  --brand: #2563eb;
+  --brand-ink: #ffffff;
+  --brand-soft: #eaf1ff;
+  --ok: #12805c;
+  --ok-soft: #e6f6ef;
+  --warn: #a15c07;
+  --warn-soft: #fff4de;
+  --bad: #c0362c;
+  --bad-soft: #fdecea;
+  --info: #1d63c5;
+  --info-soft: #e8f0fe;
+  --mute: #667085;
+  --mute-soft: #eef0f3;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.14);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1018;
+    --surface: #131a26;
+    --surface-2: #182030;
+    --line: #243044;
+    --line-strong: #31405a;
+    --ink: #eef2f8;
+    --ink-2: #aab4c5;
+    --ink-3: #7c889c;
+    --brand: #5b8def;
+    --brand-ink: #08101f;
+    --brand-soft: #172540;
+    --ok: #4cc79a;
+    --ok-soft: #123226;
+    --warn: #f0b45b;
+    --warn-soft: #382a10;
+    --bad: #f27a70;
+    --bad-soft: #3c1a18;
+    --info: #7aa7f5;
+    --info-soft: #16264a;
+    --mute: #98a2b3;
+    --mute-soft: #1d2636;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0c1018;
+  --surface: #131a26;
+  --surface-2: #182030;
+  --line: #243044;
+  --line-strong: #31405a;
+  --ink: #eef2f8;
+  --ink-2: #aab4c5;
+  --ink-3: #7c889c;
+  --brand: #5b8def;
+  --brand-ink: #08101f;
+  --brand-soft: #172540;
+  --ok: #4cc79a;
+  --ok-soft: #123226;
+  --warn: #f0b45b;
+  --warn-soft: #382a10;
+  --bad: #f27a70;
+  --bad-soft: #3c1a18;
+  --info: #7aa7f5;
+  --info-soft: #16264a;
+  --mute: #98a2b3;
+  --mute-soft: #1d2636;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-mute: var(--mute);
+  --color-mute-soft: var(--mute-soft);
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  --shadow-card: var(--shadow);
+  --shadow-pop: var(--shadow-lg);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Keyboard users get a clear ring; mouse users do not. */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--brand-soft);
+}
+
+/* thin scrollbars inside the panes */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.anim-fade-up { animation: fade-up 0.25s ease-out both; }
+.anim-spin { animation: spin 0.8s linear infinite; }
+.anim-toast { animation: toast-in 0.2s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up, .anim-toast { animation: none; }
+  * { transition-duration: 0.01ms !important; }
+}

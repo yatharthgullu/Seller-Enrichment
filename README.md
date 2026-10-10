@@ -116,8 +116,23 @@ Triage adds two cross-checks on top of the calibrated score: the GSTIN
 GSTIN is swapped for another document's reading if that one passes), and
 GSTIN-state vs address-state agreement. A conflict only demotes a field when
 the dissenting documents carry ≥ half the winner's source weight.
-Backtest of the buckets: high 93.7% correct, medium 74.0% (calibration was
-fit on the same data, so these are optimistic).
+Backtest of the buckets: high 93.7% correct, medium 74.0% (a held-out re-test, fitting the calibration on 2,000
+sellers and scoring the other 1,000 over 10 random splits, gives 92.4% for the auto-fill bucket vs 92.5%
+in-sample, so there is no meaningful overfit).
+
+## Phone confirmation (Sarvam voice agent)
+
+Fields triage left at medium / low / missing are confirmed by a Sarvam voice agent
+("IndiaMART Seller Profile Verification"). The call is placed by hand from the Sarvam
+dashboard with the seller's GLID in the `glid` agent variable (the panel shows the
+variables, and a cohort CSV for campaigns). Results come back by webhook, or with the
+**Fetch latest calls** button, and the panel shows per field what was on file, whether
+it was confirmed / corrected / collected, and the new value. **Apply** writes the
+validated values into the profile. See `docs/sarvam_agent_prompt.md`.
+
+Setup: `.env` at the project root (git-ignored) with `SARVAM_APPS_API_KEY` (Voice
+Agents key), `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_AGENT_ID`;
+`SARVAM_API_KEY` is only used to transliterate Hindi replies.
 
 ## Download / export
 
@@ -151,3 +166,21 @@ streamlit run app.py                # dashboard + editable seller profile UI
 - "People" data is surfaced from an authoritative source, not independently
   verified by this pipeline — documented above as an explicit design choice,
   not an oversight.
+
+## Run the web app
+
+React front end (`web/`) over a FastAPI backend (`api/main.py`), one process on one port:
+
+```bash
+cd web && npm install && npm run build      # once, and after UI changes
+cd .. && python -m uvicorn api.main:app --port 8000
+# open http://localhost:8000
+```
+
+For UI work, run `python -m uvicorn api.main:app --port 8000` and `npm run dev` (in `web/`) and open
+http://localhost:5173; it proxies `/api` to the backend. The same server receives Sarvam webhooks at
+`/sarvam/webhook?token=<WEBHOOK_TOKEN>`. The older Streamlit UI (`streamlit run app.py`) still works.
+
+## Test data
+
+`sample_data/` holds a 10-seller test pack (fictional sellers covering every outcome: complete, confirm, collect, GSTIN misread, conflicting names, risk flag) and a guide to the input structure. Download it from the app (**Enrich sellers → Data format**) or regenerate it with `python scripts/make_sample_dataset.py --check`.

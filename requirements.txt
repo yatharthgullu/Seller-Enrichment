@@ -7,3 +7,7 @@ numpy>=1.26
 rapidfuzz>=3.0
 streamlit>=1.30
 plotly>=5.20
+fastapi>=0.110      # web API (api/main.py)
+uvicorn>=0.29
+python-multipart>=0.0.9   # file uploads
+requests>=2.31

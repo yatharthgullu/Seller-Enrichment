@@ -17,7 +17,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from src import config, enrich as enr
+from src import config, enrich as enr, outbound, sarvam_calls
 from src.export import build_export_dataframe, flatten_profile
 
 st.set_page_config(page_title="Seller Enrichment", layout="wide")
@@ -180,6 +180,138 @@ def ingest(sources: list[tuple[str, bytes]]):
     st.session_state["corrections"] = {}
 
 
+# ----------------------------------------------------------------------------
+# outbound call: a Sarvam-hosted agent phones the seller to confirm fields
+# ----------------------------------------------------------------------------
+
+def _save_pasted_payload(text: str):
+    try:
+        payload = json.loads(text)
+        if not isinstance(payload, dict) or not payload.get("attempt_id"):
+            raise ValueError("JSON needs an attempt_id")
+        sarvam_calls.save_raw(payload)
+        st.session_state["call_flash"] = ("success", f"Saved result for {payload['attempt_id']}.")
+    except ValueError as e:
+        st.session_state["call_flash"] = ("error", f"Not a valid webhook payload: {e}")
+
+
+def _apply_attempt(seller_id: str, attempt_id: str, corrections: dict):
+    for key, c in corrections.items():
+        set_correction(seller_id, key, c["old_value"], c["new_value"])
+    sarvam_calls.mark_applied(attempt_id, seller_id, {k: c["new_value"] for k, c in corrections.items()})
+
+
+def _sync_from_sarvam(hours: int):
+    try:
+        s = sarvam_calls.fetch_recent(outbound.OutboundConfig.from_env(), hours)
+        st.session_state["call_flash"] = (
+            "success", f"Fetched {s['fetched']} call(s) from the last {hours}h: {s['connected']} connected, "
+                       f"{s['new']} new, {s['matched']} matched to a GLID.")
+    except outbound.OutboundError as e:
+        st.session_state["call_flash"] = ("error", str(e))
+
+
+def render_call_results(seller_id: str):
+    """Calls placed from the Sarvam dashboard, matched to this seller by GLID."""
+    st.markdown("##### Call results from Sarvam")
+    c1, c2 = st.columns([1, 3])
+    hours = c2.select_slider("Look back", [6, 24, 72, 168], value=72, format_func=lambda h: f"{h}h",
+                             key=f"sync_hours_{seller_id}", label_visibility="collapsed")
+    c1.button("🔄 Fetch latest calls", on_click=_sync_from_sarvam, args=(hours,), key=f"sync_{seller_id}",
+              help="Pulls recent calls from Sarvam's analytics API. Use it if the webhook is not set up or missed a call.")
+
+    recs = sarvam_calls.results_for_glid(seller_id)
+    if not recs:
+        st.caption(f"No call for GLID {seller_id} yet. Results arrive by webhook, or click Fetch after the call ends.")
+    for rec in recs[:3]:
+        dur = rec["duration"]
+        st.markdown(f"**Call {str(rec['attempt_id'])[:12]}…** · {rec['started'] or ''} · via {rec['source']} · "
+                    f"status **{rec['status']}**" + (f" · {dur:.0f}s" if isinstance(dur, (int, float)) else ""))
+        v = rec["variables"]
+        if rec["status"] != "connected":
+            st.warning(f"Call did not connect ({rec['failure_reason'] or rec['status']}); nothing to apply.")
+            continue
+        if v.get("call_disposition") or v.get("call_summary"):
+            st.caption(f"Outcome: **{v.get('call_disposition') or '-'}** · {v.get('call_summary') or ''}")
+        corrections, rows = sarvam_calls.corrections_from(sarvam_calls.field_mapping(rec), get_engine())
+        st.dataframe(pd.DataFrame(rows)[["field", "asked", "on_file", "outcome", "value", "check"]]
+                     .rename(columns={"on_file": "on file", "value": "new value"}), hide_index=True, width="stretch")
+        if sarvam_calls.is_applied(rec["attempt_id"]):
+            st.caption("✅ Applied to the profile.")
+        elif corrections:
+            st.button(f"✓ Apply {len(corrections)} confirmed value(s) to this profile",
+                      on_click=_apply_attempt, args=(seller_id, rec["attempt_id"], corrections),
+                      key=f"call_apply_{rec['attempt_id']}")
+        else:
+            st.caption("Nothing confirmed on this call, so nothing to apply.")
+        if rec["transcript"]:
+            with st.expander("Transcript"):
+                for turn in rec["transcript"]:
+                    st.markdown(f"**{turn.get('role', '?')}:** {turn.get('en_text', '')}")
+
+    orphans = sarvam_calls.unmatched_results()
+    if orphans:
+        st.warning(f"{len(orphans)} stored call(s) have no GLID (the `glid` variable and user identifier were empty). "
+                   "Re-run them with the GLID filled in.")
+
+
+def render_call_panel(seller_id: str, tri: dict):
+    with st.expander("📞 Confirm by phone call (Sarvam agent)", expanded=False):
+        cfg = outbound.OutboundConfig.from_env()
+        missing = cfg.missing()
+        if missing:
+            st.info("Add these to `.env` to enable calling: " + ", ".join(f"`{m}`" for m in missing)
+                    + ". See docs/sarvam_agent_prompt.md for where to find each value.")
+
+        plan = outbound.call_plan(tri)
+        if not plan["confirm"] and not plan["collect"]:
+            st.success("Nothing needs confirming for this seller.")
+        else:
+            company = next((f["value"] for f in tri["fields"] if f["key"] == "company_name"), None)
+            lang_name = st.radio("Call language", list(outbound.OPENING), horizontal=True, key="call_lang")
+            variables = outbound.build_agent_variables(tri, company)
+            st.caption(f"The agent will confirm: {variables['fields_to_confirm'] or '—'}  ·  "
+                       f"ask for: {variables['fields_to_collect'] or '—'}")
+            with st.expander("Triggering from the Sarvam dashboard? Variables to enter for this seller"):
+                st.caption("`glid` is how the result is matched back to this seller, so it must be filled in. "
+                           "For a campaign, map the CSV's `glid` column to the `glid` agent variable "
+                           "(Sarvam returns the user identifier hashed, so it can't carry the GLID).")
+                st.json(sarvam_calls.dashboard_variables(seller_id, variables))
+
+            phone = st.text_input("Seller's phone number", placeholder="+919876543210",
+                                  key=f"call_phone_{seller_id}")
+            st.download_button("⬇ Cohort CSV for the dashboard", key=f"call_csv_{seller_id}", mime="text/csv",
+                               data=sarvam_calls.cohort_csv(seller_id, phone, variables),
+                               file_name=f"cohort_{seller_id}.csv")
+            consent = st.checkbox("This is my own test number, or the seller has agreed to be called",
+                                  key=f"call_consent_{seller_id}")
+            if not cfg.webhook_url:
+                st.warning("No `WEBHOOK_URL` configured: the call will work, but results can't come back "
+                           "automatically. You can paste the webhook JSON below instead.")
+            if st.button("📞 Place call", disabled=bool(missing) or not consent or not phone,
+                         key=f"call_go_{seller_id}"):
+                try:
+                    with st.spinner("Creating the call..."):
+                        attempt = outbound.place_call(
+                            cfg, phone, variables, seller_id=seller_id, language_name=lang_name,
+                            plan=plan, company_name=company)
+                    st.session_state["call_flash"] = ("success", f"Call requested (attempt {attempt}). Your phone should ring shortly.")
+                except outbound.OutboundError as e:
+                    st.session_state["call_flash"] = ("error", str(e))
+                st.rerun()
+
+        flash = st.session_state.pop("call_flash", None)
+        if flash:
+            (st.success if flash[0] == "success" else st.error)(flash[1])
+
+        render_call_results(seller_id)
+
+        with st.expander("No public webhook? Paste the payload instead"):
+            pasted = st.text_area("Webhook JSON from Sarvam", key=f"call_paste_{seller_id}", height=120)
+            st.button("Save pasted result", on_click=_save_pasted_payload, args=(pasted,),
+                      key=f"call_paste_btn_{seller_id}")
+
+
 def render_upload_tab():
     st.subheader("Enrich sellers from their own documents")
     st.caption(
@@ -279,6 +411,8 @@ def render_upload_tab():
                 st.text_input("value", value=f["value"] or "", key=wk, label_visibility="collapsed")
                 st.button("Save", key=f"save_{seller_id}_{key}",
                           on_click=_save_typed, args=(seller_id, key, f["predicted_value"], wk))
+
+    render_call_panel(seller_id, tri)
 
     st.markdown("#### Suggested categories")
     cats = entry["category_suggestions"]
