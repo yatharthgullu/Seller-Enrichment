@@ -33,6 +33,7 @@ from src.export import build_export_dataframe  # noqa: E402
 from src.voice import env_value  # noqa: E402
 
 SAMPLE_DIR = config.ROOT / "data" / "samples"
+PACK_DIR = config.ROOT / "sample_data"   # the 10-seller test pack (scripts/make_sample_dataset.py)
 CORRECTIONS_FILE = config.OUTPUTS / "corrections.json"
 DIST = config.ROOT / "web" / "dist"
 CALIBRATED_COLS = ["company_name_confidence", "legal_status_confidence", "city_confidence",
@@ -148,7 +149,8 @@ def meta():
         "thresholds": {"high": config.CONFIDENCE_HIGH, "medium": config.CONFIDENCE_MED},
         "dataset_ready": bool(S.enriched),
         "sellers_in_dataset": len(S.enriched),
-        "has_samples": (SAMPLE_DIR / "sample_upload_multi.csv").exists(),
+        "has_samples": (PACK_DIR / "sample_10_sellers.csv").exists() or (SAMPLE_DIR / "sample_upload_multi.csv").exists(),
+        "has_pack": (PACK_DIR / "sample_10_sellers.csv").exists(),
         "sarvam": {"fetch_ready": not api_missing, "missing": api_missing,
                    "webhook_ready": bool(cfg.webhook_url)},
     }
@@ -184,21 +186,48 @@ async def upload(files: list[UploadFile] = File(...)):
 
 
 @app.post("/api/enrich/sample")
-def load_sample():
-    path = SAMPLE_DIR / "sample_upload_multi.csv"
+def load_sample(which: str = "ten"):
+    path = (PACK_DIR / "sample_10_sellers.csv") if which == "ten" else (SAMPLE_DIR / "sample_upload_multi.csv")
     if not path.exists():
         raise HTTPException(404, "Sample file not found")
     _ingest([(path.name, path.read_bytes())])
     return enrich_summary()
 
 
+def _sample_path(name: str) -> Path | None:
+    for folder in (PACK_DIR, SAMPLE_DIR):
+        if "/" not in name and "\\" not in name and (folder / name).is_file():
+            return folder / name
+    return None
+
+
+_SAMPLE_FILES = {
+    "seller_enrichment_test_pack.zip": "application/zip",
+    "sample_10_sellers.csv": "text/csv",
+    "sample_10_sellers.json": "application/json",
+    "sample_10_sellers_scenarios.csv": "text/csv",
+    "README.md": "text/markdown",
+    "sample_upload_multi.csv": "text/csv",
+    "sample_upload_single.json": "application/json",
+}
+
+
 @app.get("/api/enrich/samples/{name}")
 def download_sample(name: str):
-    allowed = {"sample_upload_multi.csv", "sample_upload_single.json"}
-    if name not in allowed or not (SAMPLE_DIR / name).exists():
+    path = _sample_path(name) if name in _SAMPLE_FILES else None
+    if not path:
         raise HTTPException(404)
-    return Response((SAMPLE_DIR / name).read_bytes(), media_type="application/octet-stream",
+    return Response(path.read_bytes(), media_type=_SAMPLE_FILES[name],
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@app.get("/api/samples/scenarios")
+def sample_scenarios():
+    path = PACK_DIR / "sample_10_sellers_scenarios.csv"
+    if not path.exists():
+        return {"scenarios": []}
+    df = pd.read_csv(path, dtype=str).fillna("-")
+    return {"scenarios": df.to_dict(orient="records")}
 
 
 @app.get("/api/enrich")

@@ -8,6 +8,7 @@ export interface Meta {
   dataset_ready: boolean;
   sellers_in_dataset: number;
   has_samples: boolean;
+  has_pack: boolean;
   sarvam: { fetch_ready: boolean; missing: string[]; webhook_ready: boolean };
 }
 
@@ -165,7 +166,8 @@ const post = <T,>(url: string, body?: unknown) =>
 export const api = {
   meta: () => call<Meta>("/api/meta"),
   enrich: () => call<EnrichSummary>("/api/enrich"),
-  loadSample: () => post<EnrichSummary>("/api/enrich/sample"),
+  loadSample: (which: "ten" | "eight" = "ten") => post<EnrichSummary>(`/api/enrich/sample?which=${which}`),
+  scenarios: () => call<{ scenarios: Record<string, string>[] }>("/api/samples/scenarios"),
   upload: (files: File[]) => {
     const fd = new FormData();
     files.forEach((f) => fd.append("files", f));

@@ -10,6 +10,7 @@ import {
 } from "../ui";
 import { LinkButton, PageHeader } from "./shared";
 import PhonePanel from "./PhonePanel";
+import { SampleDataButton } from "./SampleData";
 
 const FIELD_LABEL: Record<FieldKey, string> = {
   company_name: "Company name", gstin: "GSTIN", legal_status: "Legal status", city: "City", state: "State", pincode: "Pincode",
@@ -54,7 +55,7 @@ export default function Enrich({ meta }: { meta: Meta | null }) {
   const onFiles = (files: File[]) => {
     if (files.length) void ingest(() => api.upload(files), `Read ${files.length} file${files.length > 1 ? "s" : ""}`);
   };
-  const onSample = () => void ingest(api.loadSample, "Loaded the 8-seller sample");
+  const onSample = () => void ingest(() => api.loadSample("ten"), "Loaded the 10-seller test set");
 
   if (summary.loading && !s) return <Loading />;
 
@@ -64,8 +65,9 @@ export default function Enrich({ meta }: { meta: Meta | null }) {
         <PageHeader
           title="Enrich sellers"
           subtitle="Upload KYC documents and get every field back pre-filled with a confidence score, so people only touch what needs them."
+          actions={<SampleDataButton hasPack={!!meta?.has_pack} />}
         />
-        <Dropzone busy={busy} onFiles={onFiles} onSample={onSample} hasSample={!!meta?.has_samples} />
+        <Dropzone busy={busy} onFiles={onFiles} onSample={onSample} hasSample={!!meta?.has_pack} />
       </>
     );
   }
@@ -84,6 +86,7 @@ export default function Enrich({ meta }: { meta: Meta | null }) {
         }
         actions={
           <>
+            <SampleDataButton hasPack={!!meta?.has_pack} />
             <ReplaceButton busy={busy} onFiles={onFiles} />
             <LinkButton href="/api/enrich/export.csv" icon={<FileSpreadsheet size={16} />}>Export CSV</LinkButton>
             <LinkButton href="/api/enrich/export.json" icon={<FileJson size={16} />}>Export JSON</LinkButton>
@@ -150,7 +153,7 @@ function Dropzone({ busy, onFiles, onSample, hasSample }: { busy: boolean; onFil
             <div className="flex flex-wrap justify-center gap-2">
               <input ref={ref} type="file" accept=".csv,.json" multiple hidden onChange={(e) => onFiles([...(e.target.files ?? [])])} />
               <Button variant="primary" loading={busy} icon={<FileUp size={16} />} onClick={() => ref.current?.click()}>Choose files</Button>
-              {hasSample && <Button loading={busy} icon={<FlaskConical size={16} />} onClick={onSample}>Try the 8-seller sample</Button>}
+              {hasSample && <Button loading={busy} icon={<FlaskConical size={16} />} onClick={onSample}>Try the 10-seller test set</Button>}
             </div>
           }
         >
@@ -174,10 +177,11 @@ function Dropzone({ busy, onFiles, onSample, hasSample }: { busy: boolean; onFil
         </ol>
         {hasSample && (
           <div className="mt-5 border-t border-line pt-4">
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-3">Sample files</div>
+            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-3">Test pack · 10 fictional sellers</div>
             <div className="flex flex-col gap-2">
-              <LinkButton href="/api/enrich/samples/sample_upload_multi.csv" icon={<Download size={16} />} className="justify-start">Multi-seller CSV</LinkButton>
-              <LinkButton href="/api/enrich/samples/sample_upload_single.json" icon={<Download size={16} />} className="justify-start">Single-seller JSON</LinkButton>
+              <LinkButton href="/api/enrich/samples/seller_enrichment_test_pack.zip" icon={<Download size={16} />} className="justify-start border-brand bg-brand-soft text-brand">All files (.zip)</LinkButton>
+              <LinkButton href="/api/enrich/samples/sample_10_sellers.csv" icon={<Download size={16} />} className="justify-start">Upload file (CSV)</LinkButton>
+              <LinkButton href="/api/enrich/samples/sample_10_sellers.json" icon={<Download size={16} />} className="justify-start">Same data (JSON)</LinkButton>
             </div>
           </div>
         )}
@@ -239,7 +243,7 @@ function SellerList({ sellers, selected, onSelect }: { sellers: SellerRow[]; sel
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-mono text-[13px] font-medium">{x.id}</span>
                 <span className="block truncate text-xs text-ink-3">
-                  {x.docs} docs · {x.ready ? "ready" : x.check.map((k) => FIELD_LABEL[k]).join(", ")}
+                  {x.docs} doc{x.docs === 1 ? "" : "s"} · {x.ready ? "ready" : x.check.map((k) => FIELD_LABEL[k]).join(", ")}
                 </span>
               </span>
               {x.risk_flags.length > 0 && <TriangleAlert size={15} className="shrink-0 text-bad" aria-label="Risk flags" />}

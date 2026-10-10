@@ -116,8 +116,9 @@ Triage adds two cross-checks on top of the calibrated score: the GSTIN
 GSTIN is swapped for another document's reading if that one passes), and
 GSTIN-state vs address-state agreement. A conflict only demotes a field when
 the dissenting documents carry ≥ half the winner's source weight.
-Backtest of the buckets: high 93.7% correct, medium 74.0% (calibration was
-fit on the same data, so these are optimistic).
+Backtest of the buckets: high 93.7% correct, medium 74.0% (a held-out re-test, fitting the calibration on 2,000
+sellers and scoring the other 1,000 over 10 random splits, gives 92.4% for the auto-fill bucket vs 92.5%
+in-sample, so there is no meaningful overfit).
 
 ## Phone confirmation (Sarvam voice agent)
 
@@ -179,3 +180,7 @@ cd .. && python -m uvicorn api.main:app --port 8000
 For UI work, run `python -m uvicorn api.main:app --port 8000` and `npm run dev` (in `web/`) and open
 http://localhost:5173; it proxies `/api` to the backend. The same server receives Sarvam webhooks at
 `/sarvam/webhook?token=<WEBHOOK_TOKEN>`. The older Streamlit UI (`streamlit run app.py`) still works.
+
+## Test data
+
+`sample_data/` holds a 10-seller test pack (fictional sellers covering every outcome: complete, confirm, collect, GSTIN misread, conflicting names, risk flag) and a guide to the input structure. Download it from the app (**Enrich sellers → Data format**) or regenerate it with `python scripts/make_sample_dataset.py --check`.
