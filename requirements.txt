@@ -11,3 +11,4 @@ fastapi>=0.110      # web API (api/main.py)
 uvicorn>=0.29
 python-multipart>=0.0.9   # file uploads
 requests>=2.31
+pytest>=8.0         # tests: python -m pytest

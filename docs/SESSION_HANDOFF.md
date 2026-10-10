@@ -6,8 +6,10 @@ Read this first in a new session. No secrets are stored here; keys live in `.env
 Document-fusion pipeline that turns a seller's KYC documents (invoice, sign board, Udyam
 certificate, cancelled cheque) into a confidence-scored IndiaMART profile. Offline and
 deterministic core; Sarvam (voice, calls, optional doc AI) layered on top.
-Location: `D:\VoiceAI Hackathon` (Windows; pandas must come from conda, not pip).
-Python: miniconda; run `streamlit run app.py`. **Restart Streamlit after editing `src/`** (it caches modules).
+Repo: `Seller-Enrichment` (Windows). The dataset is not in git: put the `so_*.csv` / `ref_*.csv` files in `data/raw/`.
+Run the web app with `python -m uvicorn api.main:app --port 8000` and `npm run dev` in `web/` (see README).
+The older Streamlit UI (`streamlit run app.py`) still works; **restart it after editing `src/`** (it caches modules).
+If pip-installed pandas is blocked by Application Control, install pandas via conda.
 
 ## Pipeline (already built, unchanged this session)
 `src/fusion.py` weighted-vote fusion (source weights Udyam .95 > invoice .65 > sign board .55 > cheque .45;
@@ -39,11 +41,9 @@ Buckets: calibrated >= 0.8 high, >= 0.5 medium, else low.
    .env, outputs/*.json, outputs/corrections.json, outputs/calls/, skills.md.
 
 ## Git / GitHub
-Repo `https://github.com/yatharthgullu/Seller-Enrichment` (remote `main` = README only; user approved overwriting).
-Local `git init` done, remote added, fetched. **Nothing committed or pushed.** The auto-mode classifier blocked
-`git add -A` / commit twice (real seller data in a public repo), so the user must run:
-`git reset --soft origin/main && git add -A && git status --short` (check no data/ or .venv), then commit and
-`git push -u origin main`. Commit email currently the work email (gurtej.singh@indiamart.com).
+Repo `https://github.com/yatharthgullu/Seller-Enrichment`; work is on branch `feature/FrontendNew`.
+`data/raw/`, `outputs/*.json`, `.env` and `.archify/` are git-ignored: real seller data and secrets must never
+be committed. Check `git status --short` before every commit.
 
 ## Sarvam facts learned
 - Document AI (Akshar): `/doc-ai/v1/job/digitise` and `/extract` (JSON-schema extraction), PDF/PNG/JPEG/ZIP,
@@ -53,9 +53,10 @@ Local `git init` done, remote added, fetched. **Nothing committed or pushed.** T
   evals, transcripts; OAuth via Sarvam SSO, 24h tokens).
 
 ## Current state / blockers
-- `.env` has only `SARVAM_API_KEY`. Still needed for calls: SARVAM_APPS_API_KEY (may equal the API key; unverified),
-  SARVAM_ORG_ID, SARVAM_WORKSPACE_ID, SARVAM_AGENT_ID, SARVAM_AGENT_VERSION, SARVAM_CONNECTION_ID,
-  SARVAM_AGENT_PHONE, WEBHOOK_URL (public tunnel + `/sarvam/webhook`), WEBHOOK_TOKEN.
+- `.env` now holds SARVAM_API_KEY, SARVAM_APPS_API_KEY, SARVAM_ORG_ID, SARVAM_WORKSPACE_ID and SARVAM_AGENT_ID
+  (see `.env.example`), so "Fetch latest calls" is ready. Still unset: WEBHOOK_URL (public tunnel +
+  `/sarvam/webhook`) and WEBHOOK_TOKEN for push delivery; for placing calls by API also SARVAM_AGENT_VERSION,
+  SARVAM_CONNECTION_ID, SARVAM_AGENT_PHONE.
 - MCP `sarvam-voice-agents` was added with `claude mcp add --transport http ...` but status was
   "Needs authentication". User must run `/mcp` -> authenticate, then restart the session.
 - A stale-Streamlit ImportError (`env_value`) was fixed by restarting Streamlit; code was fine.
@@ -69,7 +70,7 @@ Local `git init` done, remote added, fetched. **Nothing committed or pushed.** T
 3. Then (user said "later"): improve extraction/accuracy: Document AI extract adapter for raw images/PDFs as a
    second source in fusion; LLM (sarvam-30b/105b) category rerank constrained to the 696 taxonomy, backtested;
    LLM fallback for unparseable voice replies; regional-script addresses.
-4. User pushes code to GitHub (see Git section).
+4. Quick wins from the error analysis (city aliases, pincode sanity, name normalisation); see README roadmap.
 
 ## Gotchas
 - Never place a real call without explicit user go-ahead; consent checkbox exists in the UI.
