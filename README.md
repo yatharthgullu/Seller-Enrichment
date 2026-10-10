@@ -1,186 +1,217 @@
-# Seller Enrichment — IndiaMART Voice AI Hackathon 2.0
+# Seller Enrichment
 
-Turns a seller's own raw KYC documents (invoice, sign board, Udyam
-certificate, cancelled cheque) into a confidence-scored, IM-schema profile —
-instead of scraping external sites, this fuses documents the seller has
-*already submitted*, cross-validates them against each other, and backtests
-every field against IndiaMART's own verified seller records.
+**From KYC documents to a verified IndiaMART seller profile.** Built for the IndiaMART Voice AI Hackathon 2.0.
 
-## Why this approach
+A seller uploads an invoice, sign board, Udyam certificate and cancelled cheque. Someone then has to read
+them and fill six profile fields. This project does the reading: it fuses the documents' extracted data,
+scores every field with a calibrated confidence, and sends only the uncertain fields to a person or a
+Hindi/English **Sarvam voice agent**. Nothing is scraped. Every value comes from documents the seller
+already submitted, and every field is backtested against IndiaMART's own verified records.
 
-The provided dataset (`data/raw/`) isn't just raw inputs — it's 5,000
-**already-verified** seller profiles (the answer key) plus the raw KYC
-documents used to build them, ~13,000 of which already carry IndiaMART's own
-AI extraction (`llm_extraction` column). That makes it possible to build a
-pipeline that is honestly, measurably scored against ground truth, instead of
-a scraping agent whose output quality is just "looks plausible."
+| | |
+|---|---|
+| **3,000** sellers backtested | against IndiaMART's verified records, which the engine never reads |
+| **44%** of fields auto-filled | **93.7%** of those correct |
+| **92.4%** auto-fill accuracy on held-out sellers | calibration fit on 2,000 sellers, tested on the other 1,000 (10 splits: 91.5-92.9%) |
+| **236 / 3,000** sellers fully hands-off today | the average seller needs 3.3 of 6 fields checked |
 
-## Pipeline
+The six fields are company name, GSTIN, legal status, city, state and pincode.
 
-```
-so_kyc_documents.csv (llm_extraction JSON)
-        │
-        ▼
- src/fusion.py        — collect candidate values per field from every
-                         document a seller has, cluster near-duplicates,
-                         weighted-vote a winner, assign confidence
-        │
-        ▼
- src/gstin_rules.py    — deterministic rules from the public GSTIN scheme:
-                          state code → state, PAN entity char → legal status
-        │
-        ▼
- src/address_parser.py — pincode regex + gazetteer city/state match against
-                          ref_cities.csv / ref_states.csv (not the answer key)
-        │
-        ▼
- src/taxonomy.py       — map invoice products / Udyam NIC text onto
-                          IndiaMART's 696-category taxonomy
-        │
-        ▼
- src/validate.py        — score every field against so_sellers.csv /
-                          so_seller_categories.csv (ground truth, read only
-                          here — fusion/taxonomy never see it)
-        │
-        ▼
- src/calibration.py    — fit raw confidence → empirical accuracy per field
-                          (see "Confidence calibration" below)
-        │
-        ▼
- outputs/*.json  →  app.py (Streamlit: dashboard + editable seller profile,
-                             CSV/JSON export with confidence scores)
+## How it works
+
+```mermaid
+flowchart LR
+    D["KYC documents<br/>invoice, sign board,<br/>Udyam, cheque"] --> F["Fuse<br/>cluster + weighted vote<br/>fusion.py"]
+    F --> G["Derive<br/>state, legal status,<br/>check digit<br/>gstin_rules.py"]
+    G --> C["Calibrate<br/>raw score to real probability<br/>calibration.py"]
+    C --> T{"Triage<br/>enrich.py"}
+    T -->|"0.80 or more"| A["Auto-fill"]
+    T -->|"0.50 to 0.80"| Q["Please confirm"]
+    T -->|"below 0.50 / missing"| R["Review / Fill in"]
+    Q --> V["Sarvam voice call<br/>Hindi / English"]
+    R --> V
+    V --> P["Validate and apply<br/>one click"]
+    A --> P
 ```
 
-### What's "extracted" vs. "looked up"
+1. **Fuse** (`src/fusion.py`). Each document contributes candidate values per field, weighted by source
+   reliability (Udyam 0.95, invoice 0.65, sign board 0.55, cheque 0.45). Names and addresses are clustered
+   with fuzzy matching (token-sort ratio 82 or more, so "Shivay Enterprise" and "SHIVAY ENTERPRISES" merge).
+   GSTIN and pincode must match exactly, because one wrong digit is a different code. The heaviest cluster
+   wins, and its longest spelling is shown.
+2. **Score.** `confidence = winner_share x strongest_source_weight + 0.15 per extra agreeing document`, capped at 1.
+3. **Derive** (`src/gstin_rules.py`). The GSTIN carries a state code, a PAN entity character (which gives
+   the legal status) and a check digit. A GSTIN that fails its check digit is the usual signature of one OCR
+   misread, and triage swaps in another document's reading if that one passes.
+4. **Calibrate** (`src/calibration.py`). Raw scores rank fields correctly but run low (a raw 0.5-0.6 is
+   right about 77% of the time). A monotonic step map fitted on the backtest turns them into real probabilities.
+5. **Triage** (`src/enrich.py`). Auto-fill, confirm, review or fill in, each with a plain-English reason.
+   Evidence can only lower a bucket: a GSTIN that fails its check digit, an address state that disagrees with
+   the GSTIN state code, or a material conflict between documents (dissent worth half the winner's weight or
+   more) each demote a field one bucket.
+6. **Confirm by voice** (`src/outbound.py`, `src/sarvam_calls.py`). The agent confirms and collects what
+   triage left open. Results return by GLID, are re-validated, and are applied with one click.
 
-- **Extracted & scored** (the actual ML work): company name, GSTIN, address
-  → city/state/pincode, legal status, category. Every one of these is
-  validated against the verified answer key.
-- **Authoritative lookup, not probabilistic** (realistic production
-  pattern): once a seller's GSTIN is resolved, owner/partner names and
-  designation come from a GST registry lookup (simulated here via the
-  dataset's `gst_partner_names` / `contact_designation`) — not re-extracted
-  and scored, because a government registry response isn't a prediction.
+A seller is **ready** only when every field is Auto-filled or Confirmed.
 
-## Results (3,000 sellers with ≥1 extractable document)
+## Architecture
+
+![Architecture](docs/architecture.png)
+
+Interactive version (pan, zoom, trace paths, export): download or clone and open
+[docs/architecture.html](docs/architecture.html) in a browser.
+
+| Part | Where | Role |
+|---|---|---|
+| React SPA | `web/` | Enrich, Accuracy, Explorer, Phone and Sample-data views (Vite, port 5173 in dev) |
+| FastAPI | `api/main.py` | REST API, Sarvam webhook, serves `web/dist` when built (port 8000) |
+| Engine | `src/` | Fusion, calibration, GSTIN rules, address parsing, taxonomy, triage, validation |
+| Voice | `src/outbound.py`, `src/sarvam_calls.py`, `src/voice.py` | Place or fetch calls, parse and validate replies |
+| Offline backtest | `scripts/run_pipeline.py` | Scores the pipeline against the answer key, writes `outputs/` |
+| Streamlit app | `app.py` | The earlier UI, still works |
+
+## Results
+
+Backtest on 3,000 sellers with at least one extractable document (`outputs/metrics_summary.json`):
 
 | Field | Match rate | Basis |
 |---|---|---|
-| Company name | 86.7% (avg similarity 91.3) | fuzzy match, doc fusion |
-| GSTIN entity-type char | 90.7% | validated via privacy-safe `gstin_num_6th_char` |
-| Legal status | 89.4% | deterministic GSTIN PAN-char rule |
-| State | 91.5% | gazetteer match / GSTIN state code |
-| Pincode | 73.7% | regex + gazetteer |
-| City | 68.2% | gazetteer match |
-| Field coverage | 92.6% | avg 5.55 / 6 target fields auto-filled |
-| Category top-5 precision | 9.1% (n=456) | keyword/stem overlap vs 696-category taxonomy |
+| Company name | 86.7% (avg similarity 91.3) | fuzzy match, document fusion |
+| GSTIN entity character | 90.8% | the dataset exposes only the privacy-safe 6th character |
+| Legal status | 89.5% | deterministic GSTIN PAN-character rule |
+| State | 91.5% | gazetteer match, GSTIN state-code fallback |
+| Pincode | 73.7% | regex plus gazetteer |
+| City | 68.2% | gazetteer match, scored by exact string |
+| Field coverage | 92.6% | average 5.55 of 6 fields populated |
+| Category top-5 precision | 9.1% (n=456) | keyword overlap against 696 categories; suggested, never auto-filled |
 
-Catalog-health bonus: 154 sellers with catalogue gaps (missing price/specs)
-had invoice-extracted products that could auto-fill them (346 priced line
-items recovered).
+Triage across all 3,000 sellers (18,000 field decisions): 44.3% auto-filled (93.7% correct), 46.1% confirm
+(74.0% correct), 2.1% review (GSTIN only), 7.4% not found in any document and collected on the call.
 
-Run `python scripts/run_pipeline.py` to regenerate `outputs/*.json`.
+Calibration is re-tested on held-out sellers, so the 92.4% is not an in-sample figure (in-sample: 92.5%).
+GSTIN keeps its raw score: there is no full-number ground truth to calibrate it against.
 
-## Confidence calibration
+## Quick start
 
-The fusion engine's raw confidence (source-reliability weight +
-cross-document agreement) turned out to **rank** fields correctly — binning
-raw confidence from the backtest shows accuracy climbing monotonically from
-66% (≤0.5) to 95%+ (≥0.8) — but it's conservative on an **absolute** scale:
-a raw score of 0.55 was still correct ~85% of the time. A literal "accept
-above 0.8" policy on the raw score would therefore under-trust the pipeline.
+**1. Get the data.** The IndiaMART dataset is not in the repo (`data/raw/` is git-ignored). Place the
+`so_*.csv` and `ref_*.csv` files from the four "Seller Onboarding" dataset folders in `data/raw/`.
 
-`scripts/run_pipeline.py` fits a bin-wise raw-confidence → empirical-accuracy
-mapping from exactly the (confidence, correct?) pairs the backtest produces,
-and attaches a `calibrated_confidence` to every independently-validated
-field (company name, legal status, city, state, pincode). GSTIN keeps its
-raw score — we only validate its 6th character, not the full number, so
-there's no full ground truth to calibrate against.
-
-At the default 0.80 calibrated-confidence threshold: **43.1% of individual
-fields** are auto-acceptable, and **259 of 3,000 sellers (8.6%)** have *all
-five* validated fields clear the bar with zero manual input needed. Both
-numbers (and the threshold itself) are adjustable live in the dashboard.
-
-## Upload mode (the product, not just the backtest)
-
-The first tab of the app takes a seller's (or many sellers') KYC documents —
-CSV in the `so_kyc_documents.csv` shape, or JSON — runs the same fusion and
-calibration, and triages every field: **auto-fill** (high), **confirm**
-(medium), **review / fill in** (low or missing), each with a plain-English
-reason. `src/enrich.py` holds the parsing, enrichment and triage; sample
-inputs are in `data/samples/`. No answer key is touched in this path.
-
-Triage adds two cross-checks on top of the calibrated score: the GSTIN
-**check digit** (valid → 93.0% correct vs 77.7% when it fails; a failing
-GSTIN is swapped for another document's reading if that one passes), and
-GSTIN-state vs address-state agreement. A conflict only demotes a field when
-the dissenting documents carry ≥ half the winner's source weight.
-Backtest of the buckets: high 93.7% correct, medium 74.0% (a held-out re-test, fitting the calibration on 2,000
-sellers and scoring the other 1,000 over 10 random splits, gives 92.4% for the auto-fill bucket vs 92.5%
-in-sample, so there is no meaningful overfit).
-
-## Phone confirmation (Sarvam voice agent)
-
-Fields triage left at medium / low / missing are confirmed by a Sarvam voice agent
-("IndiaMART Seller Profile Verification"). The call is placed by hand from the Sarvam
-dashboard with the seller's GLID in the `glid` agent variable (the panel shows the
-variables, and a cohort CSV for campaigns). Results come back by webhook, or with the
-**Fetch latest calls** button, and the panel shows per field what was on file, whether
-it was confirmed / corrected / collected, and the new value. **Apply** writes the
-validated values into the profile. See `docs/sarvam_agent_prompt.md`.
-
-Setup: `.env` at the project root (git-ignored) with `SARVAM_APPS_API_KEY` (Voice
-Agents key), `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_AGENT_ID`;
-`SARVAM_API_KEY` is only used to transliterate Hindi replies.
-
-## Download / export
-
-The dashboard's "Download predicted data" section exports every seller's
-predicted fields **with their confidence score** as CSV (bulk) or JSON
-(per-seller or full batch) — this is the hand-off a real onboarding pipeline
-would consume, applying its own threshold to decide what's auto-accepted vs.
-routed to a human (`src/export.py`).
-
-## Running
+**2. Install.**
 
 ```bash
-# environment note: this machine's Application Control policy blocks
-# pip-installed compiled wheels (pandas) but not conda ones — install
-# pandas/numpy via conda, everything else (streamlit, rapidfuzz, plotly)
-# via pip.
-conda install -y pandas
-pip install rapidfuzz streamlit plotly
-
-python scripts/run_pipeline.py      # full 3,000-seller batch -> outputs/
-streamlit run app.py                # dashboard + editable seller profile UI
+pip install -r requirements.txt
+cd web && npm install
 ```
 
-## Known limitations (honest, for the write-up)
+On a machine whose Application Control policy blocks pip-installed compiled wheels, install pandas with
+conda (`conda install -y pandas`) and the rest with pip.
 
-- Category mapping is keyword/stem overlap against 696 categories, not
-  embeddings — fast and dependency-light, but weak when a seller has no
-  invoice product names (456/3000 sellers had any category signal at all).
-- City/pincode matching is exact-string against the gazetteer — doesn't
-  correct OCR typos in locality names.
-- "People" data is surfaced from an authoritative source, not independently
-  verified by this pipeline — documented above as an explicit design choice,
-  not an oversight.
-
-## Run the web app
-
-React front end (`web/`) over a FastAPI backend (`api/main.py`), one process on one port:
+**3. Run the backtest once** (writes `outputs/`, used by the Accuracy and Explorer views):
 
 ```bash
-cd web && npm install && npm run build      # once, and after UI changes
-cd .. && python -m uvicorn api.main:app --port 8000
-# open http://localhost:8000
+python scripts/run_pipeline.py
 ```
 
-For UI work, run `python -m uvicorn api.main:app --port 8000` and `npm run dev` (in `web/`) and open
-http://localhost:5173; it proxies `/api` to the backend. The same server receives Sarvam webhooks at
-`/sarvam/webhook?token=<WEBHOOK_TOKEN>`. The older Streamlit UI (`streamlit run app.py`) still works.
+**4. Run the app.**
+
+```bash
+python -m uvicorn api.main:app --port 8000     # backend
+cd web && npm run dev                          # frontend -> http://localhost:5173
+```
+
+For a single-process build: `cd web && npm run build`, then open http://localhost:8000.
+The earlier Streamlit UI still works with `streamlit run app.py`.
+
+**5. Test.**
+
+```bash
+python -m pytest
+```
+
+## Configuration
+
+Copy [.env.example](.env.example) to `.env` (git-ignored). Everything except the voice panel works without it.
+
+| Variable | Needed for |
+|---|---|
+| `SARVAM_APPS_API_KEY`, `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_AGENT_ID` | "Fetch latest calls", placing calls |
+| `SARVAM_API_KEY` | Transliterating Hindi replies |
+| `WEBHOOK_URL`, `WEBHOOK_TOKEN` | Receiving results by webhook at `/sarvam/webhook?token=...` |
+
+Never commit keys. The agent prompt and its variable contract are in
+[docs/sarvam_agent_prompt.md](docs/sarvam_agent_prompt.md).
+
+## Phone confirmation
+
+The call is placed from the Sarvam dashboard with the seller's GLID in the `glid` agent variable (the
+panel shows the variables, and a cohort CSV for campaigns). Results come back by webhook or by the
+**Fetch latest calls** button, are matched to the seller by GLID, and the panel shows per field what was
+on file, whether it was confirmed, corrected or collected, and the new value. **Apply** writes the
+validated values into the profile (GSTIN check digit, pincode shape, city and state lists). A call that did
+not connect applies nothing. Raw phone numbers are never stored, only masked and hashed forms.
+
+## API overview
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/meta` | Dataset and Sarvam readiness |
+| `POST /api/enrich/upload`, `POST /api/enrich/sample` | Enrich uploaded or sample documents |
+| `GET /api/enrich`, `GET /api/enrich/sellers/{sid}` | Triage summary and one seller |
+| `POST /api/enrich/sellers/{sid}/correct` | Record a person's confirmation or edit |
+| `GET /api/enrich/export.csv`, `.json` | Predicted fields with confidence scores |
+| `GET /api/calls`, `POST /api/calls/sync`, `POST /api/calls/{id}/apply` | Call results and apply |
+| `POST /sarvam/webhook` | Sarvam call-completion events |
+| `GET /api/accuracy` | Backtest metrics at a chosen threshold |
+| `GET /api/explorer/sellers`, `.../{sid}` | Browse sellers beside the answer key |
+
+Interactive docs are at http://localhost:8000/docs while the backend runs.
 
 ## Test data
 
-`sample_data/` holds a 10-seller test pack (fictional sellers covering every outcome: complete, confirm, collect, GSTIN misread, conflicting names, risk flag) and a guide to the input structure. Download it from the app (**Enrich sellers → Data format**) or regenerate it with `python scripts/make_sample_dataset.py --check`.
+`sample_data/` holds a 10-seller pack of fictional sellers, one per scenario (complete, confirm, collect,
+GSTIN misread, conflicting names, risk flag). Download it from the app (**Enrich sellers, Data format**) or
+regenerate it with `python scripts/make_sample_dataset.py --check`.
+
+## Project layout
+
+```
+api/            FastAPI app (REST + Sarvam webhook)
+web/            React + Vite front end
+src/            fusion, calibration, gstin_rules, address_parser, taxonomy,
+                enrich (triage), validate, export, outbound, sarvam_calls, voice
+scripts/        run_pipeline (backtest), make_sample_dataset, webhook_server
+tests/          pytest suite (fusion, GSTIN rules)
+docs/           architecture diagram, Sarvam agent prompt, session handoff
+sample_data/    10-seller test pack
+data/raw/       IndiaMART dataset (git-ignored, you provide it)
+outputs/        generated backtest results (git-ignored)
+```
+
+## Known limitations
+
+- **Source weights are hand-set** (0.95 / 0.65 / 0.55 / 0.45), not learned.
+- **Agreement assumes independence.** Two documents can share one mistake.
+- **GSTIN is checked lightly:** check digit and 6th character only, with no registry lookup.
+- **City is scored by exact string.** 165 of 882 misses are "Delhi" vs "New Delhi"; counting district
+  matches lifts it to at least 77%.
+- **Pincode takes the first 6-digit number**, which is sometimes a phone or invoice number.
+- **Name clustering is order-dependent and strict on suffixes.** "K K" vs "K.K." and "Pvt Ltd" variants can
+  split a cluster; a document may also name a brand rather than the seller.
+- **Only 48% of extracted documents are read.** Office-setup, product and inventory audit documents are
+  extracted but unused. The dataset has document paths only, so extraction from raw images cannot be
+  backtested at scale.
+
+## Roadmap
+
+- **Now:** city, pincode and company-name normalisation; quality gates (`isInvoice`); a second GSTIN source
+  from audit documents; per-field thresholds.
+- **Next:** learned weights and per-field calibration; IFSC and Udyam extras; a location-plausibility check;
+  a category model using product names and HSN.
+- **Later:** GST registry integration; a learning loop where every correction and call outcome becomes a
+  label; more languages and a WhatsApp fallback.
+
+## Further reading
+
+- [docs/architecture.html](docs/architecture.html) - interactive architecture diagram
+- [docs/sarvam_agent_prompt.md](docs/sarvam_agent_prompt.md) - voice agent prompt and variables
+- [docs/SESSION_HANDOFF.md](docs/SESSION_HANDOFF.md) - working notes and Sarvam findings

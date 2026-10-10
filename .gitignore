@@ -13,3 +13,6 @@ outputs/calls/
 
 web/node_modules/
 web/dist/
+
+# architecture tool scratch (final diagram lives in docs/architecture.html)
+.archify/
